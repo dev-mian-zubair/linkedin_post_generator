@@ -1,0 +1,5 @@
+fastapi
+google-generativeai
+newspaper3k
+uvicorn
+pydantic

@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pyc
+
+# Jupyter Notebooks
+.ipynb_checkpoints/
+
+
+# Virtual Env
+.venv/
+
+# VS Code
+.vscode/
+
+# Environment
+.env
+*.env
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# FastAPI
+*.db
+
+# Other
+*.sqlite3
