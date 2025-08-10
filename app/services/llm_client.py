@@ -1,37 +1,72 @@
 import json
 import google.generativeai as genai
 from app.core.config import settings
+from app.schemas.template import PostTemplate
+from pydantic import BaseModel
 
+class ArticleInfo(BaseModel):
+  article_title: str
+  article_text: str
+  article_link: str
+  images: list[str]
+
+# Initialize the Generative AI client
 genai.configure(api_key=settings.GEMINI_API_KEY)
 
-def generate_linkedin_post(article_title: str, article_text: str, images: list[str], article_link: str = None):
-    prompt = f"""
-You are a professional LinkedIn content creator.
-I will give you an article title, text, article link, and a list of image URLs.
+# Function to build the prompt
+def build_prompt(template: PostTemplate, article: ArticleInfo):
+    prompt_parts = [
+      "You are a professional LinkedIn content creator.",
+      template.prompt,
+    ]
 
-TASK:
-- Summarize the article into a compelling LinkedIn post.
-- Include an engaging hook in the first sentence.
-- Make it professional but engaging for LinkedIn readers.
-- Pick the MOST relevant image from the list.
-- Generate 5-8 relevant hashtags.
-- Detect and label the tone (e.g., Professional, Inspirational, Informative).
-- IMPORTANT: After generating the post text, create a second version called 'human_post_text' that rewrites the post in a simple, humanistic style as if a real person is writing. Use techniques similar to Quillbot to make the language natural, clear, and easy to read. Avoid overly formal or robotic language. Do not use placeholders like [Link to Article] or [More Info]; instead, directly include the actual link or information in the post text where appropriate.
+    if template.hook_required:
+      prompt_parts.append("- Start with an engaging hook in the first sentence.")
+    if template.include_article_link:
+      prompt_parts.append(f"- Naturally include this link: {article.article_link}")
+    if template.select_best_image:
+      if article.images:
+        prompt_parts.append("- Pick the MOST relevant image from the list.")
+      else:
+        prompt_parts.append("- No relevant image found in the article. Search the web for a highly relevant image and return its direct URL as 'selected_image'.")
+    if template.detect_tone:
+      prompt_parts.append("- Detect and label the tone.")
+    if template.generate_human_post:
+      prompt_parts.append(
+        "- Create a second version 'human_post_text' that rewrites the post in a simple, humanistic style."
+      )
+    if template.style_guidelines:
+      prompt_parts.append(f"- Follow this style guideline: {template.style_guidelines}")
 
+    prompt_parts.append(f"- Generate {template.hashtag_count} relevant hashtags.")
+    if template.hashtags:
+      prompt_parts.append(f"- Prefer hashtags from: {', '.join(template.hashtags)}")
+
+    # INPUT section
+    prompt_parts.append(f"""
 INPUT:
-Title: {article_title}
-Content: {article_text[:3000]}  # truncated for token limit
-Article Link: {article_link}
-Images: {images}
+Title: {article.article_title}
+Content: {article.article_text[:3000]}
+Article Link: {article.article_link}
+Images: {article.images}
+""")
 
+    # OUTPUT section
+    prompt_parts.append("""
 OUTPUT:
-Return ONLY valid JSON with the following keys:
+Return ONLY valid JSON with:
 - post_text (string)
-- human_post_text (string, a simple, humanistic rewrite of post_text with direct links or information, no placeholders)
-- selected_image (string URL from the given images)
+- human_post_text (string)
+- selected_image (string URL)
 - hashtags (list of strings)
 - tone (string)
-"""
+""")
+
+    return "\n".join(prompt_parts)
+
+# Function to generate the post
+def generate_linkedin_post(template: PostTemplate, article: ArticleInfo):
+    prompt = build_prompt(template, article)
 
     model = genai.GenerativeModel(settings.MODEL_NAME)
     response = model.generate_content(prompt)
