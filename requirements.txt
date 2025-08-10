@@ -1,5 +1,5 @@
 fastapi
-google-generativeai
-newspaper3k
 uvicorn
+newspaper3k
+google-generativeai
 pydantic
